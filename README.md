@@ -23,10 +23,9 @@ S.A.F.E. Sky (System for Airflight Forecast & Evaluation) is an advanced decisio
 │   └── backup_snapshot.csv
 ├── frontend/           # Modern Web Dashboard
 │   └── index.html      # Single-file Vanillla JS + Leaflet App
-├── scripts/            # Training & Utility Scripts
-│   ├── training_models.ipynb
-│   └── downloading.py
-└── datasets/           # Raw training data
+└── scripts/            # Training & Utility Scripts
+    ├── training_models.ipynb
+    └── downloading.py
 ```
 
 ## Setup & Usage
@@ -41,8 +40,8 @@ S.A.F.E. Sky (System for Airflight Forecast & Evaluation) is an advanced decisio
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/yourusername/ai-atc.git
-cd ai-atc
+git clone https://github.com/saivijayragav/ai-atc.git
+cd ai-atc-assistant
 pip install -r requirements.txt
 ```
 

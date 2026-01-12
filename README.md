@@ -2,7 +2,7 @@
 
 S.A.F.E. Sky (System for Airflight Forecast & Evaluation) is an advanced decision support system for Air Traffic Control (ATC). It combines real-time data ingestion, machine learning-based conflict prediction, and a modern "Glassmorphism" visualization interface to enhance situational awareness for operators.
 
-![Dashboard Preview](frontend/preview.png)
+![Dashboard Preview](frontend/dashboardpreview.png)
 
 ## Key Features
 

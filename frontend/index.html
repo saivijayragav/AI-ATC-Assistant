@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.A.F.E. Sky - ATC Decision Support</title>
+
+    <!-- Leaflet & Fonts -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+            --accent-green: #10b981;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        /* Layout */
+        #app {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        #map {
+            flex: 1;
+            z-index: 1;
+            background: #000;
+        }
+
+        /* Glassmorphism Sidebar */
+        #sidebar {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            bottom: 20px;
+            width: 320px;
+            z-index: 1000;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        /* Header */
+        header {
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 span {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Metrics Grid */
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        /* Alerts List */
+        .section-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-sub);
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #alerts-container {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        /* Custom Scrollbar */
+        #alerts-container::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #alerts-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        .alert-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-left: 3px solid transparent;
+            font-size: 13px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .alert-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .alert-item.critical {
+            border-left-color: var(--accent-red);
+            background: linear-gradient(90deg, rgba(239, 68, 68, 0.1), transparent);
+        }
+
+        .alert-item.warning {
+            border-left-color: var(--accent-orange);
+        }
+
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .alert-meta {
+            color: var(--text-sub);
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Status Indicator */
+        .status-pill {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            margin-right: 8px;
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        .status-pill.offline {
+            background: var(--accent-red);
+            box-shadow: none;
+        }
+
+        /* Loader */
+        .loader {
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            color: var(--text-sub);
+            font-size: 13px;
+        }
+
+        /* Plane Icon Animations */
+        .plane-icon {
+            transition: all 1s linear;
+            /* Smooth movement */
+        }
+
+        /* Button */
+        .btn-primary {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 12px;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app">
+        <!-- Map -->
+        <div id="map"></div>
+
+        <!-- UI Overlay -->
+        <aside id="sidebar">
+            <header>
+                <h1>
+                    <span class="status-pill" id="api-status"></span>
+                    <span>S.A.F.E. Sky</span>
+                </h1>
+                <div style="font-size: 12px; color: var(--text-sub); margin-top: 4px;">
+                    Decision Support System
+                </div>
+            </header>
+
+            <!-- Stats -->
+            <div class="metrics">
+                <div class="metric-card">
+                    <div class="metric-value" id="count-total">--</div>
+                    <div class="metric-label">Aircraft</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value" id="count-conflict" style="color: var(--accent-red)">--</div>
+                    <div class="metric-label">Conflicts</div>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="loadData()">
+                ⟳ Refocus Region
+            </button>
+
+            <div class="section-title" style="margin-top: 24px;">
+                Active Alerts
+                <span id="last-update" style="font-weight: 400; font-size: 10px; opacity: 0.7"></span>
+            </div>
+
+            <div id="alerts-container">
+                <div class="loader">Initializing data stream...</div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // --- Configuration ---
+        const CONFIG = {
+            // Try localhost, it often matches the browser's origin better (avoiding specific CORS strictness)
+            api_url: "http://localhost:8000/airspace/snapshot",
+            refresh_rate: 20000, // 20s (Safer for OpenSky anonymous limits)
+            center: [48.0, 10.0], // Europe
+            zoom: 5
+        };
+
+        // --- State ---
+        let state = {
+            aircraft: [],
+            markers: {}, // callsign -> marker
+            selected: null
+        };
+
+        // --- Map Initialization ---
+        const map = L.map('map', {
+            zoomControl: false,
+            attributionControl: false
+        }).setView(CONFIG.center, CONFIG.zoom);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            maxZoom: 19
+        }).addTo(map);
+
+        // --- Utils ---
+        const getPlaneIcon = (heading, color) => {
+            const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                style="transform: rotate(${heading}deg); filter: drop-shadow(0 0 4px ${color});">
+                <path fill="${color}" d="M21,16V14L13,9V3.5A1.5,1.5 0 0,0 11.5,2A1.5,1.5 0 0,0 10,3.5V9L2,14V16L10,13.5V19L8,20.5V22L11.5,21L15,22V20.5L13,19V13.5L21,16Z"/>
+            </svg>
+        `;
+            return L.divIcon({
+                html: svg,
+                className: 'plane-icon',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+        };
+
+        // --- Logic ---
+        async function loadData() {
+            try {
+                document.getElementById('api-status').classList.remove('offline');
+
+                // Capture current map bounds
+                const bounds = map.getBounds();
+                const url = new URL(CONFIG.api_url);
+                url.searchParams.set('lamin', bounds.getSouth());
+                url.searchParams.set('lomin', bounds.getWest());
+                url.searchParams.set('lamax', bounds.getNorth());
+                url.searchParams.set('lomax', bounds.getEast());
+
+                const res = await fetch(url).catch(err => {
+                    // Should we try 127.0.0.1 fallback?
+                    throw new Error(`Connection refused to ${CONFIG.api_url}`);
+                });
+
+                if (!res.ok) throw new Error(`API Error: ${res.status}`);
+
+                // Check for stale data warning from backend
+                const errorMsg = res.headers.get("X-Error");
+                if (errorMsg) {
+                    document.getElementById('api-status').classList.add('offline'); // Re-use offline style (red dot)
+                    // Maybe show a toast or change the header text?
+                    document.querySelector('header h1 span:last-child').textContent = "S.A.F.E. Sky (Cached Data)";
+                    document.querySelector('header h1 span:last-child').style.color = "var(--accent-orange)";
+                    console.warn("Using cached data due to:", errorMsg);
+                } else {
+                    document.querySelector('header h1 span:last-child').textContent = "S.A.F.E. Sky";
+                    document.querySelector('header h1 span:last-child').style.color = "";
+                }
+
+                const data = await res.json();
+
+                updateState(data);
+                updateUI();
+
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+
+            } catch (e) {
+                console.error("Fetch error:", e);
+                document.getElementById('api-status').classList.add('offline');
+
+                const container = document.getElementById('alerts-container');
+                // Only show error if list is empty (don't clear existing data on transient fail)
+                if (Object.keys(state.markers).length === 0) {
+                    container.innerHTML = `
+                    <div style="padding: 20px; color: var(--accent-red); text-align: center;">
+                        <div style="font-weight: 700; margin-bottom: 8px;">Connection Failed</div>
+                        <div style="font-size: 11px; color: var(--text-sub);">
+                            Ensure backend is running:<br>
+                            <code>uvicorn app:app --reload</code><br>
+                            on port 8000.
+                            <br><br>
+                            Error: ${e.message}
+                        </div>
+                    </div>
+                `;
+                }
+            }
+        }
+
+        function updateState(newData) {
+            state.aircraft = newData;
+
+            // Clean up missing markers
+            const newCallsigns = new Set(newData.map(d => d.callsign));
+            Object.keys(state.markers).forEach(c => {
+                if (!newCallsigns.has(c)) {
+                    map.removeLayer(state.markers[c]);
+                    delete state.markers[c];
+                }
+            });
+
+            // Update/Add markers
+            newData.forEach(ac => {
+                let color = "#3b82f6"; // Default Blue
+                let zIndex = 100;
+
+                if (ac.conflict_prob > 0.5) {
+                    color = "#ef4444"; // Red (Conflict)
+                    zIndex = 1000;
+                } else if (ac.anomaly === -1) {
+                    color = "#f59e0b"; // Orange (Anomaly)
+                    zIndex = 500;
+                }
+
+                if (state.markers[ac.callsign]) {
+                    // Update existing
+                    const m = state.markers[ac.callsign];
+                    m.setLatLng([ac.lat, ac.lon]);
+                    m.setIcon(getPlaneIcon(ac.heading, color));
+                    m.setZIndexOffset(zIndex);
+
+                    // Update popup content if open
+                    if (m.isPopupOpen()) {
+                        m.setPopupContent(buildPopupContent(ac));
+                    }
+                } else {
+                    // Create new
+                    const m = L.marker([ac.lat, ac.lon], {
+                        icon: getPlaneIcon(ac.heading, color),
+                        zIndexOffset: zIndex
+                    }).bindPopup(buildPopupContent(ac));
+
+                    m.on('click', () => { state.selected = ac.callsign; updateUI(); });
+
+                    m.addTo(map);
+                    state.markers[ac.callsign] = m;
+                }
+            });
+        }
+
+        function buildPopupContent(ac) {
+            return `
+            <div style="font-family: 'Inter', sans-serif; min-width: 150px;">
+                <div style="font-weight: 700; margin-bottom: 4px; border-bottom: 1px solid #ccc; padding-bottom: 4px;">
+                    ${ac.callsign}
+                </div>
+                <div style="font-size: 12px; line-height: 1.5;">
+                    <div>Alt: <b>${Math.round(ac.geoaltitude)}m</b></div>
+                    <div>Vel: <b>${Math.round(ac.velocity)}m/s</b></div>
+                    <div>Risk: <b style="color: ${ac.conflict_prob > 0.5 ? 'red' : 'inherit'}">${(ac.conflict_prob * 100).toFixed(1)}%</b></div>
+                </div>
+            </div>
+        `;
+        }
+
+        function updateUI() {
+            // Counts
+            const conflictCount = state.aircraft.filter(a => a.conflict_prob > 0.5).length;
+            document.getElementById('count-total').textContent = state.aircraft.length;
+            document.getElementById('count-conflict').textContent = conflictCount;
+
+            // Alert List
+            const container = document.getElementById('alerts-container');
+            const alerts = state.aircraft
+                .filter(a => a.conflict_prob > 0.5 || a.anomaly === -1)
+                .sort((a, b) => b.conflict_prob - a.conflict_prob); // Highest risk first
+
+            if (alerts.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-sub); opacity: 0.5;">Airspace Nominal</div>`;
+                return;
+            }
+
+            container.innerHTML = alerts.map(a => {
+                const isConflict = a.conflict_prob > 0.5;
+                const typeClass = isConflict ? 'critical' : 'warning';
+                const label = isConflict ? 'CONFLICT RISK' : 'ANOMALY DETECTED';
+                const value = isConflict ? `${(a.conflict_prob * 100).toFixed(0)}%` : 'Kinematic';
+
+                return `
+                <div class="alert-item ${typeClass}" onclick="focusAircraft('${a.callsign}')">
+                    <div class="alert-header">
+                        <span>${a.callsign}</span>
+                        <span style="font-size: 10px; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px;">${label}</span>
+                    </div>
+                    <div class="alert-meta">
+                        <span>ALT: ${Math.round(a.geoaltitude)}m</span>
+                        <span>${value}</span>
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+
+        // Global exposed function for onclick
+        window.focusAircraft = (callsign) => {
+            const m = state.markers[callsign];
+            if (m) {
+                map.flyTo(m.getLatLng(), 10);
+                m.openPopup();
+            }
+        };
+
+        // --- Init ---
+        // Start with a small timeout to let map settle?
+        setTimeout(loadData, 500);
+        setInterval(loadData, CONFIG.refresh_rate);
+
+    </script>
+</body>
+
+</html>

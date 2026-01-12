@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+.venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# Web (if we add node_modules later)
+node_modules/
+.DS_Store
+
+# Project specific
+backend/backup_snapshot.csv
+*.pkl
+datasets/

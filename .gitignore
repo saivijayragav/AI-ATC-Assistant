@@ -20,6 +20,4 @@ node_modules/
 .DS_Store
 
 # Project specific
-backend/backup_snapshot.csv
-*.pkl
 datasets/
